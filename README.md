@@ -94,6 +94,7 @@ issue for sensitive reports.
 
 ## License
 
-The module is distributed under the terms in [LICENSE](LICENSE). A public
-repository does not grant a license beyond those terms or an applicable Gondola
-subscription agreement.
+The infrastructure module in this repository is licensed under the
+[Apache License 2.0](LICENSE). The Gondola controller, release artifacts, and
+commercial service are separate products and are not licensed by this module's
+license. Copyright 2026 Greg Tucker.
