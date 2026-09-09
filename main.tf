@@ -590,6 +590,26 @@ data "aws_iam_policy_document" "controller" {
     resources = ["*"]
   }
 
+  dynamic "statement" {
+    for_each = var.bootstrap_diagnostics_enabled ? [1] : []
+    content {
+      sid       = "ReadManagedBootstrapStatus"
+      actions   = ["ec2:GetConsoleOutput"]
+      resources = ["arn:${data.aws_partition.current.partition}:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:instance/*"]
+
+      condition {
+        test     = "StringEquals"
+        variable = "ec2:ResourceTag/gondola:managed"
+        values   = ["true"]
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "ec2:ResourceTag/gondola:deployment"
+        values   = values(local.fleet_deployment_ids)
+      }
+    }
+  }
+
   statement {
     sid       = "TerminateManagedRunners"
     actions   = ["ec2:TerminateInstances"]
@@ -656,7 +676,7 @@ locals {
     }, contains(keys(local.cache_runtime_configuration), name) ? { cache = local.cache_runtime_configuration[name] } : {})
   ]
 
-  controller_generation = sha256(jsonencode({
+  controller_generation = sha256(jsonencode(merge({
     container_image    = var.container_image
     cpu                = var.cpu
     memory             = var.memory
@@ -671,7 +691,7 @@ locals {
     environment        = var.environment
     metrics_enabled    = var.metrics_enabled
     metrics_namespace  = var.metrics_namespace
-  }))
+  }, var.bootstrap_diagnostics_enabled ? { bootstrap_diagnostics_enabled = true } : {})))
 
   environment = merge(var.environment, local.github_environment, local.entitlement_environment, {
     GONDOLA_LISTEN_ADDRESS            = ":8080"
@@ -687,7 +707,7 @@ locals {
     GONDOLA_FLEETS_JSON               = jsonencode(local.fleet_runtime_configuration)
     GONDOLA_METRICS_ENABLED           = tostring(var.metrics_enabled)
     GONDOLA_METRICS_NAMESPACE         = var.metrics_namespace
-  })
+  }, var.bootstrap_diagnostics_enabled ? { GONDOLA_BOOTSTRAP_DIAGNOSTICS_ENABLED = "true" } : {})
 
   secrets = merge(var.secrets, local.github_secrets, local.entitlement_secrets)
 }

@@ -169,6 +169,35 @@ This draft prepares module 0.5.0; it does not establish published image
 availability, live AWS acceptance, or a performance benchmark. Use the matching
 released controller/module/profile references only after release verification.
 
+## Observed bootstrap diagnostics
+
+The upcoming module 0.6.0 adds `bootstrap_diagnostics_enabled = true` as an
+explicit opt-in. It preserves allowed, observed bootstrap stages in the
+customer's existing controller CloudWatch log group using bounded background
+EC2 console reads. The default is `false`; disabled deployments retain their
+existing permissions and generation configuration. Enabling or disabling the
+option changes the controller generation and follows the normal upgrade drain.
+
+The option grants `ec2:GetConsoleOutput` only for instance ARNs in the module's
+account and region, conditioned on Gondola's managed tag and the module's
+fleet deployment tags. It adds no guest agent, service, or vendor telemetry.
+Only validated stage fields are emitted; the collector does not retain raw
+console responses, workflow output, or runner diagnostic files. Existing
+`log_retention_days` applies, and CloudWatch ingestion, storage, and query
+charges remain the customer's responsibility.
+
+Collection is best effort. Latest console output requires Nitro; buffering,
+truncation, bounded read budgets, restart, and instance teardown can leave
+missing or repeated observations. Stages do not establish job execution,
+instance termination, or an attestation, and local runner logs are not
+preserved after teardown. Live Nitro and teardown acceptance is still required
+before relying on coverage.
+
+Use the matching verified signed release bundle's operator-guides archive for
+`docs/operations/observability.md`, including customer CloudWatch queries and
+collection limits. This draft prepares module 0.6.0 and does not establish
+release availability or live AWS acceptance.
+
 ## Security
 
 The GitHub App private key and signed entitlement are read from Secrets Manager
