@@ -29,7 +29,7 @@ least two Availability Zones.
 ```hcl
 module "gondola" {
   source  = "gondola-build/gondola/aws"
-  version = "~> 0.3"
+  version = "0.3.0"
 
   name            = "gondola-production"
   vpc_id          = var.vpc_id
