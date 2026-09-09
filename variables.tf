@@ -292,8 +292,30 @@ variable "runner_root_volume_size" {
   default     = 50
 
   validation {
-    condition     = var.runner_root_volume_size >= 30 && floor(var.runner_root_volume_size) == var.runner_root_volume_size
-    error_message = "runner_root_volume_size must be an integer of at least 30 GiB."
+    condition     = var.runner_root_volume_size >= 30 && var.runner_root_volume_size <= 65536 && floor(var.runner_root_volume_size) == var.runner_root_volume_size
+    error_message = "runner_root_volume_size must be an integer from 30 through 65536 GiB."
+  }
+}
+
+variable "runner_root_volume_iops" {
+  description = "Provisioned gp3 runner root-volume IOPS. The 3000 default is included in storage pricing; higher values incur additional AWS charges and are limited by the instance's EBS capability."
+  type        = number
+  default     = 3000
+
+  validation {
+    condition     = var.runner_root_volume_iops >= 3000 && var.runner_root_volume_iops <= 80000 && floor(var.runner_root_volume_iops) == var.runner_root_volume_iops
+    error_message = "runner_root_volume_iops must be an integer from 3000 through 80000."
+  }
+}
+
+variable "runner_root_volume_throughput" {
+  description = "Provisioned gp3 runner root-volume throughput in MiB/s. The 125 default is included in storage pricing; higher values incur additional AWS charges and are limited by the instance's EBS capability."
+  type        = number
+  default     = 125
+
+  validation {
+    condition     = var.runner_root_volume_throughput >= 125 && var.runner_root_volume_throughput <= 2000 && floor(var.runner_root_volume_throughput) == var.runner_root_volume_throughput
+    error_message = "runner_root_volume_throughput must be an integer from 125 through 2000 MiB/s."
   }
 }
 
@@ -359,6 +381,8 @@ variable "fleets" {
     instance_type            = optional(string)
     runner_container_image   = optional(string)
     root_volume_size         = optional(number)
+    root_volume_iops         = optional(number)
+    root_volume_throughput   = optional(number)
     policy_arns              = optional(set(string), [])
     iam_instance_profile_arn = optional(string)
     iam_role_arn             = optional(string)
@@ -381,10 +405,12 @@ variable "fleets" {
       fleet.max_runners <= 1000 &&
       floor(fleet.max_runners) == fleet.max_runners &&
       fleet.min_runners <= fleet.max_runners &&
-      (fleet.root_volume_size == null ? true : (fleet.root_volume_size >= 30 && floor(fleet.root_volume_size) == fleet.root_volume_size)) &&
+      (fleet.root_volume_size == null ? true : (fleet.root_volume_size >= 30 && fleet.root_volume_size <= 65536 && floor(fleet.root_volume_size) == fleet.root_volume_size)) &&
+      (fleet.root_volume_iops == null ? true : (fleet.root_volume_iops >= 3000 && fleet.root_volume_iops <= 80000 && floor(fleet.root_volume_iops) == fleet.root_volume_iops)) &&
+      (fleet.root_volume_throughput == null ? true : (fleet.root_volume_throughput >= 125 && fleet.root_volume_throughput <= 2000 && floor(fleet.root_volume_throughput) == fleet.root_volume_throughput)) &&
       ((fleet.iam_instance_profile_arn == null) == (fleet.iam_role_arn == null))
     ])
-    error_message = "Each fleet must have valid names, x64 or arm64 architecture, a supported capacity mode, valid runner limits and volume size, and both or neither external IAM profile/role ARNs."
+    error_message = "Each fleet must have valid names, x64 or arm64 architecture, a supported capacity mode, valid runner limits and gp3 storage size/IOPS/throughput, and both or neither external IAM profile/role ARNs."
   }
 }
 

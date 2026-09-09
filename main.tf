@@ -41,6 +41,8 @@ locals {
       instance_type            = var.runner_instance_type
       runner_container_image   = var.runner_container_image
       root_volume_size         = var.runner_root_volume_size
+      root_volume_iops         = var.runner_root_volume_iops
+      root_volume_throughput   = var.runner_root_volume_throughput
       policy_arns              = var.runner_policy_arns
       iam_instance_profile_arn = null
       iam_role_arn             = null
@@ -66,6 +68,8 @@ locals {
       instance_type            = fleet.instance_type == null ? (fleet.architecture == "arm64" ? "m7g.large" : var.runner_instance_type) : fleet.instance_type
       runner_container_image   = fleet.runner_container_image == null ? var.runner_container_image : fleet.runner_container_image
       root_volume_size         = fleet.root_volume_size == null ? var.runner_root_volume_size : fleet.root_volume_size
+      root_volume_iops         = fleet.root_volume_iops == null ? var.runner_root_volume_iops : fleet.root_volume_iops
+      root_volume_throughput   = fleet.root_volume_throughput == null ? var.runner_root_volume_throughput : fleet.root_volume_throughput
       policy_arns              = fleet.policy_arns
       iam_instance_profile_arn = fleet.iam_instance_profile_arn
       iam_role_arn             = fleet.iam_role_arn
@@ -414,6 +418,8 @@ resource "aws_launch_template" "runner" {
       delete_on_termination = true
       volume_type           = "gp3"
       volume_size           = each.value.root_volume_size
+      iops                  = each.value.root_volume_iops
+      throughput            = each.value.root_volume_throughput
     }
   }
 
@@ -439,6 +445,13 @@ resource "aws_launch_template" "runner" {
   }
 
   tags = local.fleet_tags[each.key]
+
+  lifecycle {
+    precondition {
+      condition     = each.value.root_volume_iops <= each.value.root_volume_size * 500 && each.value.root_volume_throughput <= each.value.root_volume_iops * 0.25
+      error_message = "Runner gp3 storage must provision at most 500 IOPS per GiB and 0.25 MiB/s throughput per IOPS, including inherited fleet defaults."
+    }
+  }
 }
 
 resource "aws_iam_role" "execution" {
