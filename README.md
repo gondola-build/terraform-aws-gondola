@@ -86,7 +86,7 @@ create a public listener or inbound product endpoint.
 The upcoming module 0.3.0 and its matching signed controller release support
 `entitlement_renewal_enabled = true`. Existing installations remain manual.
 Set `renewal_activation_secret_arn` to a separate raw Secrets Manager secret
-containing the activation key, and configure `alarm_sns_topic_arns` for renewal
+containing the activation key, and configure `alarm_action_arns` for renewal
 failure notifications. This opt-in requires entitlement enforcement, the
 module's DynamoDB coordination, and a raw unversioned entitlement secret in
 the same AWS account and region.
@@ -99,7 +99,7 @@ then rolls the existing service and observes readiness for that token. It
 receives no GitHub key and cannot register task definitions or pass roles.
 AWS task, scheduling, log and secret charges remain customer costs.
 
-Allow HTTPS egress to `https://gondola.build/api/license/activate` and required
+Allow HTTPS egress to `https://gondola.build/api/entitlements/activate` and required
 regional AWS APIs. The helper does not add vendor access to the scheduling
 path. Immediate mid-period plan changes still require a manual refresh and
 rollout. `entitlement_trusted_keys` permits overlap of up to four explicitly
