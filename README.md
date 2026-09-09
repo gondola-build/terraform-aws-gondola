@@ -109,6 +109,35 @@ Disabling the helper returns future renewal to the manual procedure.
 Use this feature only with the matching released controller/module pair from
 the verified release manifest. Older controller images do not implement it.
 
+## Optional S3 caching
+
+The cache feature requires the matching module 0.4.0/controller release pair.
+`cache_fleets` creates one private, encrypted S3 bucket for each explicitly
+enabled fleet, with scoped runner IAM and lifecycle expiry (14 days by default).
+No cache resources or permissions are added when the map is empty.
+
+Each entry names its `repository`, `trust_namespace` and optional `read_only`
+policy. Set `helper_image` to the public multiarchitecture controller reference
+from that same verified release manifest. Controller images mirrored to private
+ECR do not make runner-host pulls automatically authenticated.
+
+Restrict the fleet's GitHub runner group to the configured repository and trusted
+workflows. The fleet IAM role and GitHub scheduling policy provide isolation;
+the repository string alone is not an authorization boundary. Never share a
+writable cache between untrusted pull requests and privileged builds.
+
+Caching uses explicit paired restore/save steps or the shipped CLI. It does not
+redirect `actions/cache`, setup-action caches, or BuildKit `type=gha`. Obtain the
+reviewed composite action and customer workflow guide from the signed public
+release bundle and commit the action into the customer repository. No access to
+Gondola's private product-source repository is required.
+
+S3 storage, transfer and request charges remain customer costs. Expiry is
+asynchronous and does not enforce a byte or spending quota. Cache buckets use
+`force_destroy=false`; drain jobs and explicitly empty a populated bucket before
+removing it. Existing buckets and external runner IAM profiles are unsupported
+by this first integration.
+
 ## Security
 
 The GitHub App private key and signed entitlement are read from Secrets Manager
