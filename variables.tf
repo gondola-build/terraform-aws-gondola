@@ -414,6 +414,12 @@ variable "fleets" {
   }
 }
 
+variable "bootstrap_diagnostics_enabled" {
+  description = "Preserve observed bootstrap stages in customer CloudWatch controller logs using bounded best-effort EC2 console reads. Requires Nitro for latest output; existing log retention and charges apply."
+  type        = bool
+  default     = false
+}
+
 variable "metrics_enabled" {
   description = "Publish per-fleet custom metrics to CloudWatch. Disabled by default because custom metrics incur a recurring AWS charge."
   type        = bool
