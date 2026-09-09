@@ -626,7 +626,7 @@ resource "aws_iam_role_policy" "controller" {
 
 locals {
   fleet_runtime_configuration = [
-    for name in sort(keys(local.fleets)) : {
+    for name in sort(keys(local.fleets)) : merge({
       name                    = name
       scale_set_name          = local.fleets[name].scale_set_name
       runner_group            = local.fleets[name].runner_group
@@ -640,7 +640,7 @@ locals {
       deployment_id           = local.fleet_deployment_ids[name]
       max_runner_lifetime     = local.fleets[name].max_runner_lifetime
       capacity_mode           = local.fleets[name].capacity_mode
-    }
+    }, contains(keys(local.cache_runtime_configuration), name) ? { cache = local.cache_runtime_configuration[name] } : {})
   ]
 
   controller_generation = sha256(jsonencode({
