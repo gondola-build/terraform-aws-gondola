@@ -26,55 +26,57 @@ locals {
   # migrate state to the "default" fleet first, then opt into var.fleets.
   legacy_fleets = {
     default = {
-      scale_set_name           = var.scale_set_name
-      runner_group             = var.runner_group
-      labels                   = var.runner_labels
-      min_runners              = var.min_runners
-      max_runners              = var.max_runners
-      architecture             = "x64"
-      capacity_mode            = var.runner_capacity_mode
-      vpc_id                   = var.vpc_id
-      subnet_ids               = var.runner_subnet_ids == null ? var.subnet_ids : var.runner_subnet_ids
-      security_group_ids       = var.runner_security_group_ids
-      egress_ipv4_cidrs        = var.runner_egress_ipv4_cidrs
-      ami_id                   = var.runner_ami_id
-      instance_type            = var.runner_instance_type
-      runner_container_image   = var.runner_container_image
-      root_volume_size         = var.runner_root_volume_size
-      root_volume_iops         = var.runner_root_volume_iops
-      root_volume_throughput   = var.runner_root_volume_throughput
-      policy_arns              = var.runner_policy_arns
-      iam_instance_profile_arn = null
-      iam_role_arn             = null
-      max_runner_lifetime      = var.max_runner_lifetime
-      tags                     = {}
+      scale_set_name             = var.scale_set_name
+      runner_group               = var.runner_group
+      labels                     = var.runner_labels
+      min_runners                = var.min_runners
+      max_runners                = var.max_runners
+      architecture               = "x64"
+      capacity_mode              = var.runner_capacity_mode
+      vpc_id                     = var.vpc_id
+      subnet_ids                 = var.runner_subnet_ids == null ? var.subnet_ids : var.runner_subnet_ids
+      security_group_ids         = var.runner_security_group_ids
+      egress_ipv4_cidrs          = var.runner_egress_ipv4_cidrs
+      ami_id                     = var.runner_ami_id
+      instance_type              = var.runner_instance_type
+      instance_type_alternatives = var.runner_instance_type_alternatives
+      runner_container_image     = var.runner_container_image
+      root_volume_size           = var.runner_root_volume_size
+      root_volume_iops           = var.runner_root_volume_iops
+      root_volume_throughput     = var.runner_root_volume_throughput
+      policy_arns                = var.runner_policy_arns
+      iam_instance_profile_arn   = null
+      iam_role_arn               = null
+      max_runner_lifetime        = var.max_runner_lifetime
+      tags                       = {}
     }
   }
 
   configured_fleets = {
     for name, fleet in var.fleets : name => {
-      scale_set_name           = coalesce(fleet.scale_set_name, name)
-      runner_group             = fleet.runner_group
-      labels                   = fleet.labels
-      min_runners              = fleet.min_runners
-      max_runners              = fleet.max_runners
-      architecture             = fleet.architecture
-      capacity_mode            = fleet.capacity_mode
-      vpc_id                   = fleet.vpc_id == null ? var.vpc_id : fleet.vpc_id
-      subnet_ids               = fleet.subnet_ids == null ? (var.runner_subnet_ids == null ? var.subnet_ids : var.runner_subnet_ids) : fleet.subnet_ids
-      security_group_ids       = fleet.security_group_ids
-      egress_ipv4_cidrs        = fleet.egress_ipv4_cidrs
-      ami_id                   = fleet.ami_id
-      instance_type            = fleet.instance_type == null ? (fleet.architecture == "arm64" ? "m7g.large" : var.runner_instance_type) : fleet.instance_type
-      runner_container_image   = fleet.runner_container_image == null ? var.runner_container_image : fleet.runner_container_image
-      root_volume_size         = fleet.root_volume_size == null ? var.runner_root_volume_size : fleet.root_volume_size
-      root_volume_iops         = fleet.root_volume_iops == null ? var.runner_root_volume_iops : fleet.root_volume_iops
-      root_volume_throughput   = fleet.root_volume_throughput == null ? var.runner_root_volume_throughput : fleet.root_volume_throughput
-      policy_arns              = fleet.policy_arns
-      iam_instance_profile_arn = fleet.iam_instance_profile_arn
-      iam_role_arn             = fleet.iam_role_arn
-      max_runner_lifetime      = fleet.max_runner_lifetime
-      tags                     = fleet.tags
+      scale_set_name             = coalesce(fleet.scale_set_name, name)
+      runner_group               = fleet.runner_group
+      labels                     = fleet.labels
+      min_runners                = fleet.min_runners
+      max_runners                = fleet.max_runners
+      architecture               = fleet.architecture
+      capacity_mode              = fleet.capacity_mode
+      vpc_id                     = fleet.vpc_id == null ? var.vpc_id : fleet.vpc_id
+      subnet_ids                 = fleet.subnet_ids == null ? (var.runner_subnet_ids == null ? var.subnet_ids : var.runner_subnet_ids) : fleet.subnet_ids
+      security_group_ids         = fleet.security_group_ids
+      egress_ipv4_cidrs          = fleet.egress_ipv4_cidrs
+      ami_id                     = fleet.ami_id
+      instance_type              = fleet.instance_type == null ? (fleet.architecture == "arm64" ? "m7g.large" : var.runner_instance_type) : fleet.instance_type
+      instance_type_alternatives = fleet.instance_type_alternatives
+      runner_container_image     = fleet.runner_container_image == null ? var.runner_container_image : fleet.runner_container_image
+      root_volume_size           = fleet.root_volume_size == null ? var.runner_root_volume_size : fleet.root_volume_size
+      root_volume_iops           = fleet.root_volume_iops == null ? var.runner_root_volume_iops : fleet.root_volume_iops
+      root_volume_throughput     = fleet.root_volume_throughput == null ? var.runner_root_volume_throughput : fleet.root_volume_throughput
+      policy_arns                = fleet.policy_arns
+      iam_instance_profile_arn   = fleet.iam_instance_profile_arn
+      iam_role_arn               = fleet.iam_role_arn
+      max_runner_lifetime        = fleet.max_runner_lifetime
+      tags                       = fleet.tags
     }
   }
 
@@ -448,6 +450,19 @@ resource "aws_launch_template" "runner" {
 
   lifecycle {
     precondition {
+      condition = length(each.value.instance_type_alternatives) == 0 || (
+        length(distinct(concat([each.value.instance_type], each.value.instance_type_alternatives))) == length(each.value.instance_type_alternatives) + 1 &&
+        (length(each.value.instance_type_alternatives) + 1) * length(each.value.subnet_ids) <= 32
+      )
+      error_message = "Approved instance types must not repeat the primary and must form at most 32 type/subnet pairs."
+    }
+    precondition {
+      condition = alltrue([
+        for key, candidate in local.approved_type_checks : contains(data.aws_ec2_instance_type.approved[key].supported_architectures, each.value.architecture == "arm64" ? "arm64" : "x86_64") if candidate.fleet == each.key
+      ])
+      error_message = "Every approved instance type must support the fleet architecture."
+    }
+    precondition {
       condition     = each.value.root_volume_iops <= each.value.root_volume_size * 500 && each.value.root_volume_throughput <= each.value.root_volume_iops * 0.25
       error_message = "Runner gp3 storage must provision at most 500 IOPS per GiB and 0.25 MiB/s throughput per IOPS, including inherited fleet defaults."
     }
@@ -526,21 +541,43 @@ data "aws_iam_policy_document" "controller" {
     resources = [aws_dynamodb_table.coordination.arn]
   }
 
-  statement {
-    sid       = "LaunchRunnerInstanceType"
-    actions   = ["ec2:RunInstances"]
-    resources = ["arn:${data.aws_partition.current.partition}:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:instance/*"]
+  dynamic "statement" {
+    for_each = length(local.fixed_type_fleets) > 0 ? [1] : []
+    content {
+      sid       = "LaunchRunnerInstanceType"
+      actions   = ["ec2:RunInstances"]
+      resources = ["arn:${data.aws_partition.current.partition}:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:instance/*"]
 
-    condition {
-      test     = "ArnEquals"
-      variable = "ec2:LaunchTemplate"
-      values   = [for template in values(aws_launch_template.runner) : template.arn]
+      condition {
+        test     = "ArnEquals"
+        variable = "ec2:LaunchTemplate"
+        values   = [for name in keys(local.fixed_type_fleets) : aws_launch_template.runner[name].arn]
+      }
+
+      condition {
+        test     = "StringEquals"
+        variable = "ec2:InstanceType"
+        values   = distinct([for fleet in values(local.fixed_type_fleets) : fleet.instance_type])
+      }
     }
+  }
 
-    condition {
-      test     = "StringEquals"
-      variable = "ec2:InstanceType"
-      values   = distinct([for fleet in values(local.fleets) : fleet.instance_type])
+  dynamic "statement" {
+    for_each = local.approved_instance_types
+    content {
+      sid       = "LaunchApproved${substr(sha256(statement.key), 0, 16)}"
+      actions   = ["ec2:RunInstances"]
+      resources = ["arn:${data.aws_partition.current.partition}:ec2:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:instance/*"]
+      condition {
+        test     = "ArnEquals"
+        variable = "ec2:LaunchTemplate"
+        values   = [aws_launch_template.runner[statement.key].arn]
+      }
+      condition {
+        test     = "StringEquals"
+        variable = "ec2:InstanceType"
+        values   = statement.value
+      }
     }
   }
 
@@ -673,7 +710,7 @@ locals {
       deployment_id           = local.fleet_deployment_ids[name]
       max_runner_lifetime     = local.fleets[name].max_runner_lifetime
       capacity_mode           = local.fleets[name].capacity_mode
-    }, contains(keys(local.cache_runtime_configuration), name) ? { cache = local.cache_runtime_configuration[name] } : {})
+    }, contains(keys(local.cache_runtime_configuration), name) ? { cache = local.cache_runtime_configuration[name] } : {}, contains(keys(local.approved_instance_types), name) ? { instance_types = local.approved_instance_types[name] } : {}, contains(keys(local.warm_window_configuration), name) ? { warm_windows = local.warm_window_configuration[name] } : {})
   ]
 
   controller_generation = sha256(jsonencode(merge({
@@ -782,6 +819,15 @@ resource "aws_ecs_task_definition" "this" {
   }
 
   lifecycle {
+    precondition {
+      condition = alltrue([
+        for name, windows in var.warm_windows : contains(keys(local.fleets), name) && alltrue([
+          for window in windows : window.min_runners <= try(local.fleets[name].max_runners, 0)
+        ])
+      ])
+      error_message = "Every warm_windows key must identify a configured fleet and every window minimum must be no greater than that fleet's max_runners."
+    }
+
     precondition {
       condition     = local.github_credentials_valid
       error_message = "Provide exactly one credential: github_token_secret_arn or complete GitHub App credentials."
