@@ -144,7 +144,9 @@ locals {
   entitlement_environment = merge(
     { GONDOLA_ENTITLEMENT_REQUIRED = tostring(var.entitlement_required) },
     var.entitlement_public_key == null ? {} : { GONDOLA_ENTITLEMENT_PUBLIC_KEY = var.entitlement_public_key },
-    var.entitlement_key_id == null ? {} : { GONDOLA_ENTITLEMENT_KEY_ID = var.entitlement_key_id }
+    var.entitlement_key_id == null ? {} : { GONDOLA_ENTITLEMENT_KEY_ID = var.entitlement_key_id },
+    length(var.entitlement_trusted_keys) == 0 ? {} : { GONDOLA_ENTITLEMENT_TRUSTED_KEYS_JSON = jsonencode(var.entitlement_trusted_keys) },
+    var.entitlement_renewal_enabled ? { GONDOLA_ENTITLEMENT_GENERATION_ENABLED = "true" } : {}
   )
 
   entitlement_secrets = var.entitlement_secret_arn == null ? {} : {
@@ -155,11 +157,11 @@ locals {
     !var.entitlement_required &&
     var.entitlement_secret_arn == null &&
     var.entitlement_public_key == null &&
-    var.entitlement_key_id == null
+    var.entitlement_key_id == null &&
+    length(var.entitlement_trusted_keys) == 0
     ) || (
     var.entitlement_secret_arn != null &&
-    var.entitlement_public_key != null &&
-    var.entitlement_key_id != null
+    ((var.entitlement_public_key != null && var.entitlement_key_id != null) || (var.entitlement_public_key == null && var.entitlement_key_id == null && length(var.entitlement_trusted_keys) > 0))
   )
 
   configured_secret_arns = toset(compact(concat(tolist(var.secret_arns), [
@@ -754,7 +756,14 @@ resource "aws_ecs_task_definition" "this" {
 
     precondition {
       condition     = local.entitlement_configuration_valid
-      error_message = "Production requires entitlement_secret_arn, entitlement_public_key, and entitlement_key_id together. Non-release builds may set entitlement_required = false only for development and isolated tests; official release binaries still refuse the bypass."
+      error_message = "Production requires entitlement_secret_arn and trusted verification keys (the legacy public-key/key-ID pair or entitlement_trusted_keys). Non-release builds may set entitlement_required = false only for development and isolated tests; official release binaries still refuse the bypass."
+    }
+
+    precondition {
+      condition = length(setunion(toset(keys(var.entitlement_trusted_keys)), var.entitlement_key_id == null ? toset([]) : toset([var.entitlement_key_id]))) <= 4 && (
+        var.entitlement_key_id == null ? true : lookup(var.entitlement_trusted_keys, var.entitlement_key_id, var.entitlement_public_key) == var.entitlement_public_key
+      )
+      error_message = "Configure at most four distinct trusted entitlement keys and do not map the legacy key ID to a conflicting public key."
     }
 
     precondition {

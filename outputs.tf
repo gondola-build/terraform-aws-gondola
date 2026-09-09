@@ -19,7 +19,7 @@ output "coordination_table_name" {
 }
 
 output "deployment_generation" {
-  description = "Immutable hash fencing the currently configured controller generation."
+  description = "Configured controller generation hash. With optional renewal enabled, the runtime derives an effective generation from this hash and the verified entitlement."
   value       = local.controller_generation
 }
 
