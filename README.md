@@ -198,6 +198,53 @@ Use the matching verified signed release bundle's operator-guides archive for
 collection limits. This draft prepares module 0.6.0 and does not establish
 release availability or live AWS acceptance.
 
+## Approved capacity and UTC minimum windows
+
+The upcoming module 0.7.0 adds optional instance-type alternatives and weekly
+minimum/replenishment windows. Empty defaults retain existing behavior. Use
+these settings only with the matching released controller/module pair from the
+verified release manifest; this draft does not establish release availability
+or live AWS/GitHub acceptance.
+
+Set a named fleet's ordered `instance_type_alternatives`, or the legacy fleet's
+`runner_instance_type_alternatives`, to explicitly approved EC2 types. The
+primary type is tried across configured subnets before each alternative. Only
+explicit AWS capacity rejections advance the sequence; ambiguous responses,
+timeouts, and authorization failures stop it. Spot-only fleets remain Spot;
+`spot-with-on-demand-fallback` tries On-Demand after every approved Spot
+combination is rejected. Gondola does not automatically rerun workflows.
+
+At most eight unique types, including the primary, and 32 type/subnet pairs are
+allowed. Terraform checks the approved types' architecture; operators must also
+verify AMI compatibility, CPU/memory/storage/network suitability, quotas, and
+price for the fleet's existing workflow labels. IAM pairs each opted-in fleet's
+launch template with its exact approved types. Alternatives affect future
+launches and provide no capacity, performance, or lower-cost guarantee.
+
+The `warm_windows` map uses fleet names (`default` for the legacy fleet). Each
+window contains `days` (unique lowercase weekdays such as `mon`), `start_utc`
+(`HH:MM`), `duration_minutes` (15–1440 whole minutes), and `min_runners` (a
+non-negative integer no greater than that fleet's `max_runners`). A fleet
+accepts at most 16 windows. Times use UTC with
+no daylight-saving conversion; starts are inclusive, ends exclusive, and
+windows may cross midnight or the week boundary.
+
+Overlapping windows take the highest minimum and never lower the ordinary
+`min_runners`. Desired capacity is that effective minimum plus assigned jobs,
+capped by `max_runners`. Changes take effect on the next successful leader
+reconciliation, so budget for launch and registration time. No separate
+scheduler service or vendor callback is added.
+
+When a window ends, replenishment returns to the ordinary minimum; there is
+no immediate scale-in. Existing runners remain until their one job completes
+or `max_runner_lifetime` expires. That hard lifetime still applies independently,
+including to long-running jobs. Budget for higher minimums and delayed
+wind-down; windows are not a spending cap or an off-hours shutdown guarantee.
+
+The matching verified signed release bundle's operator-guides archive includes
+`docs/capacity.md` with configuration examples, failure boundaries, logs and
+metrics, and the remaining published-image acceptance steps.
+
 ## Security
 
 The GitHub App private key and signed entitlement are read from Secrets Manager
