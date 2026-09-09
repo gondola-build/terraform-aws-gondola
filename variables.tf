@@ -366,28 +366,29 @@ variable "fleets" {
     its architecture, capacity mode, network, AMI, instance type, IAM role, and tags.
   EOT
   type = map(object({
-    scale_set_name           = optional(string)
-    runner_group             = optional(string, "default")
-    labels                   = optional(list(string), [])
-    min_runners              = optional(number, 0)
-    max_runners              = optional(number, 10)
-    architecture             = optional(string, "x64")
-    capacity_mode            = optional(string, "spot-with-on-demand-fallback")
-    vpc_id                   = optional(string)
-    subnet_ids               = optional(list(string))
-    security_group_ids       = optional(list(string), [])
-    egress_ipv4_cidrs        = optional(list(string), ["0.0.0.0/0"])
-    ami_id                   = optional(string)
-    instance_type            = optional(string)
-    runner_container_image   = optional(string)
-    root_volume_size         = optional(number)
-    root_volume_iops         = optional(number)
-    root_volume_throughput   = optional(number)
-    policy_arns              = optional(set(string), [])
-    iam_instance_profile_arn = optional(string)
-    iam_role_arn             = optional(string)
-    max_runner_lifetime      = optional(string, "6h")
-    tags                     = optional(map(string), {})
+    scale_set_name             = optional(string)
+    runner_group               = optional(string, "default")
+    labels                     = optional(list(string), [])
+    min_runners                = optional(number, 0)
+    max_runners                = optional(number, 10)
+    architecture               = optional(string, "x64")
+    capacity_mode              = optional(string, "spot-with-on-demand-fallback")
+    vpc_id                     = optional(string)
+    subnet_ids                 = optional(list(string))
+    security_group_ids         = optional(list(string), [])
+    egress_ipv4_cidrs          = optional(list(string), ["0.0.0.0/0"])
+    ami_id                     = optional(string)
+    instance_type              = optional(string)
+    instance_type_alternatives = optional(list(string), [])
+    runner_container_image     = optional(string)
+    root_volume_size           = optional(number)
+    root_volume_iops           = optional(number)
+    root_volume_throughput     = optional(number)
+    policy_arns                = optional(set(string), [])
+    iam_instance_profile_arn   = optional(string)
+    iam_role_arn               = optional(string)
+    max_runner_lifetime        = optional(string, "6h")
+    tags                       = optional(map(string), {})
   }))
   default = {}
 
@@ -399,6 +400,9 @@ variable "fleets" {
       can(regex("^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$", fleet.runner_group)) &&
       contains(["x64", "arm64"], fleet.architecture) &&
       contains(["on-demand", "spot", "spot-with-on-demand-fallback"], fleet.capacity_mode) &&
+      length(fleet.instance_type_alternatives) <= 7 &&
+      length(distinct(fleet.instance_type_alternatives)) == length(fleet.instance_type_alternatives) &&
+      alltrue([for candidate in fleet.instance_type_alternatives : can(regex("^[a-z][a-z0-9-]{0,31}\\.[a-z0-9-]{1,31}$", candidate))]) &&
       fleet.min_runners >= 0 &&
       floor(fleet.min_runners) == fleet.min_runners &&
       fleet.max_runners > 0 &&
