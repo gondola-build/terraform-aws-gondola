@@ -138,6 +138,37 @@ asynchronous and does not enforce a byte or spending quota. Cache buckets use
 removing it. Existing buckets and external runner IAM profiles are unsupported
 by this first integration.
 
+## Runner storage and image profiles
+
+The upcoming module 0.5.0 adds gp3 performance settings without increasing the
+default provisioned performance. Global settings apply to the compatibility
+fleet and to named fleets that omit the corresponding override:
+
+| Setting | Global input | Per-fleet override | Default |
+| --- | --- | --- | --- |
+| Root volume size | `runner_root_volume_size` | `root_volume_size` | 50 GiB |
+| Provisioned IOPS | `runner_root_volume_iops` | `root_volume_iops` | 3000 |
+| Throughput | `runner_root_volume_throughput` | `root_volume_throughput` | 125 MiB/s |
+
+Values must be integers: 30–65536 GiB, 3000–80000 IOPS, and 125–2000 MiB/s.
+The effective configuration, including inherited values, must stay within
+500 IOPS per GiB and 0.25 MiB/s per IOPS. These are regional EC2 gp3 settings;
+Outposts is outside this module's support scope. Higher provisioned IOPS or
+throughput add AWS charges, and the instance's EBS limits can constrain actual
+performance. These settings do not promise measured build speed or throughput.
+
+Runner-image profiles are a separate choice from storage and the EC2 AMI.
+For a matching release that publishes them, use the digest-pinned
+`.runner_images.lean.reference` or `.runner_images.development.reference` from
+the verified signed release manifest as `runner_container_image`, globally or
+inside a fleet. Choose a profile supporting the fleet's Linux architecture.
+Older release manifests, including v0.2.0, do not contain these fields; do not
+infer a digest or combine unreviewed release versions.
+
+This draft prepares module 0.5.0; it does not establish published image
+availability, live AWS acceptance, or a performance benchmark. Use the matching
+released controller/module/profile references only after release verification.
+
 ## Security
 
 The GitHub App private key and signed entitlement are read from Secrets Manager
