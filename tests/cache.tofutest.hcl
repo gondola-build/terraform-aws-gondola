@@ -165,20 +165,20 @@ run "separate_fleet_authority" {
   command = apply
   variables {
     fleets = {
-      trusted = { runner_group = "project-trusted" }
+      trusted  = { runner_group = "project-trusted" }
       isolated = { runner_group = "other-trusted" }
     }
     cache_fleets = {
-      trusted = { repository = "example/project", trust_namespace = "trusted" }
+      trusted  = { repository = "example/project", trust_namespace = "trusted" }
       isolated = { repository = "example/other", trust_namespace = "trusted" }
     }
   }
   assert {
-    condition = aws_s3_bucket.cache["trusted"].bucket != aws_s3_bucket.cache["isolated"].bucket && jsondecode(aws_iam_role_policy.cache["trusted"].policy).Statement[1].Resource[0] != jsondecode(aws_iam_role_policy.cache["isolated"].policy).Statement[1].Resource[0]
+    condition     = aws_s3_bucket.cache["trusted"].bucket != aws_s3_bucket.cache["isolated"].bucket && jsondecode(aws_iam_role_policy.cache["trusted"].policy).Statement[1].Resource[0] != jsondecode(aws_iam_role_policy.cache["isolated"].policy).Statement[1].Resource[0]
     error_message = "Separate fleets must not share a bucket or object-access scope."
   }
   assert {
-    condition = alltrue([for policy in aws_iam_role_policy.cache : alltrue([for statement in jsondecode(policy.policy).Statement : !contains(statement.Action, "s3:DeleteObject") && !contains(statement.Action, "s3:*")])])
+    condition     = alltrue([for policy in aws_iam_role_policy.cache : alltrue([for statement in jsondecode(policy.policy).Statement : !contains(statement.Action, "s3:DeleteObject") && !contains(statement.Action, "s3:*")])])
     error_message = "Runner cache policies must never grant delete or blanket S3 permissions."
   }
 }
