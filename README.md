@@ -29,7 +29,7 @@ least two Availability Zones.
 ```hcl
 module "gondola" {
   source  = "gondola-build/gondola/aws"
-  version = "~> 0.2"
+  version = "0.7.0"
 
   name            = "gondola-production"
   vpc_id          = var.vpc_id
@@ -83,7 +83,7 @@ create a public listener or inbound product endpoint.
 
 ## Optional entitlement renewal
 
-The upcoming module 0.3.0 and its matching signed controller release support
+Module 0.7.0 and its matching signed controller release support
 `entitlement_renewal_enabled = true`. Existing installations remain manual.
 Set `renewal_activation_secret_arn` to a separate raw Secrets Manager secret
 containing the activation key, and configure `alarm_action_arns` for renewal
@@ -111,7 +111,7 @@ the verified release manifest. Older controller images do not implement it.
 
 ## Optional S3 caching
 
-The cache feature requires the matching module 0.4.0/controller release pair.
+S3 caching is included in module 0.7.0 and its matching controller release.
 `cache_fleets` creates one private, encrypted S3 bucket for each explicitly
 enabled fleet, with scoped runner IAM and lifecycle expiry (14 days by default).
 No cache resources or permissions are added when the map is empty.
