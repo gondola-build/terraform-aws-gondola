@@ -87,6 +87,7 @@ output "alarm_arns" {
   description = "CloudWatch alarm ARNs keyed by fleet and condition; empty when alarms are disabled."
   value = merge(
     { for name, alarm in aws_cloudwatch_metric_alarm.fleet_not_ready : "${name}:FleetReady" => alarm.arn },
-    { for name, alarm in aws_cloudwatch_metric_alarm.runner_errors : name => alarm.arn }
+    { for name, alarm in aws_cloudwatch_metric_alarm.runner_errors : name => alarm.arn },
+    { for name, alarm in aws_cloudwatch_metric_alarm.budget_admission_errors : "${name}:BudgetAdmissionErrors" => alarm.arn }
   )
 }
