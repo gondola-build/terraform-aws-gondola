@@ -245,6 +245,74 @@ The matching verified signed release bundle's operator-guides archive includes
 `docs/capacity.md` with configuration examples, failure boundaries, logs and
 metrics, and the remaining published-image acceptance steps.
 
+## Optional adaptive capacity and daily allowances
+
+The upcoming module 0.8.0 and its matching signed controller add
+`adaptive_warm_pools` and `fleet_budgets`. Module/controller 0.7.0 does not
+support these settings. Enable them only after the matching 0.8.0 releases are
+published, using the verified release manifest.
+
+Add these inputs to the module configuration for the existing `linux_x64`
+fleet. The hourly rate is illustrative, not an AWS price quote:
+
+```hcl
+adaptive_warm_pools = {
+  linux_x64 = {
+    max_runners                 = 2
+    target_queue_seconds        = 30
+    adjustment_interval_minutes = 5
+  }
+}
+
+fleet_budgets = {
+  linux_x64 = {
+    daily_limit_usd        = 20
+    runner_hourly_rate_usd = 0.10
+  }
+}
+```
+
+Both maps default to empty and can be enabled independently per fleet. Keys
+must identify existing fleets; use `default` for the legacy single fleet.
+Fleets without a budget retain unrestricted admission under their runner limits.
+Separate release and experimental fleets have separate allowances; Gondola does
+not transfer allowance or reorder GitHub jobs.
+
+Adaptive capacity adjusts the warm target using the observed 90th percentile
+of GitHub queue-to-runner-assignment delays. It needs ten fresh samples, changes
+capacity gradually, and decays the target during inactivity. The target is not
+a job-start guarantee. Baseline and scheduled minimums remain effective, and
+learning resets after a listener/controller restart. Lowering the target stops
+replenishment; it does not terminate existing runners. This policy changes
+warm capacity, not instance types or workflow configuration.
+
+Before every launch, including warm replenishment, Gondola reserves the
+configured hourly rate multiplied by the maximum runner lifetime, rounded up
+to a millionth of a dollar. With the default six-hour lifetime, this example
+reserves US$0.60 per runner. Choose a rate covering every approved instance type
+and On-Demand fallback. Short jobs, failed launches, and uncertain outcomes do
+not refund allocations. The allowance is conservative admission accounting,
+not actual AWS billing or a total spending cap; storage, networking,
+control-plane costs, price changes, and cleanup delays affect actual charges.
+
+Each full reservation belongs to its UTC admission date. Midnight opens a new
+allowance on the next successful reconciliation without a restart. GitHub's own
+queue limits still apply. Exhaustion or ledger errors block new launches while
+existing jobs and completion/expiry cleanup continue; warm targets cannot bypass
+admission. Existing maximum-lifetime termination still applies.
+
+Budgets create a separate encrypted DynamoDB ledger with point-in-time recovery
+and 90-day retention. Usage survives controller restarts and configuration
+changes. Preserve the table and fleet identities: removing all budget entries
+plans deletion of the table and removes enforcement; recreating it resets
+accounting. Review that change before applying.
+
+Decisions appear in controller logs. With `metrics_enabled`, CloudWatch reports
+adaptive capacity, remaining allowance, blocked launches, and admission errors.
+With `alarms_enabled`, budget fleets receive an admission-error alarm; ordinary
+exhaustion does not trigger it. A healthy listener does not imply available
+allowance or working ledger writes.
+
 ## Security
 
 The GitHub App private key and signed entitlement are read from Secrets Manager

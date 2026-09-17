@@ -531,6 +531,35 @@ resource "aws_iam_role_policy_attachment" "task" {
 }
 
 data "aws_iam_policy_document" "controller" {
+  dynamic "statement" {
+    for_each = length(var.fleet_budgets) > 0 ? [1] : []
+    content {
+      sid = "ReadFleetBudgetAdmissions"
+      actions = [
+        "dynamodb:GetItem"
+      ]
+      resources = [aws_dynamodb_table.budgets[0].arn]
+    }
+  }
+
+  # DynamoDB authorizes transactions using their underlying item actions.
+  dynamic "statement" {
+    for_each = length(var.fleet_budgets) > 0 ? [1] : []
+    content {
+      sid = "ReserveFleetBudgetAdmissions"
+      actions = [
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem"
+      ]
+      resources = [aws_dynamodb_table.budgets[0].arn]
+      condition {
+        test     = "StringEquals"
+        variable = "dynamodb:EnclosingOperation"
+        values   = ["TransactWriteItems"]
+      }
+    }
+  }
+
   statement {
     sid = "CoordinateControllers"
     actions = [
@@ -710,7 +739,7 @@ locals {
       deployment_id           = local.fleet_deployment_ids[name]
       max_runner_lifetime     = local.fleets[name].max_runner_lifetime
       capacity_mode           = local.fleets[name].capacity_mode
-    }, contains(keys(local.cache_runtime_configuration), name) ? { cache = local.cache_runtime_configuration[name] } : {}, contains(keys(local.approved_instance_types), name) ? { instance_types = local.approved_instance_types[name] } : {}, contains(keys(local.warm_window_configuration), name) ? { warm_windows = local.warm_window_configuration[name] } : {})
+    }, contains(keys(local.cache_runtime_configuration), name) ? { cache = local.cache_runtime_configuration[name] } : {}, contains(keys(local.approved_instance_types), name) ? { instance_types = local.approved_instance_types[name] } : {}, contains(keys(local.warm_window_configuration), name) ? { warm_windows = local.warm_window_configuration[name] } : {}, contains(keys(var.adaptive_warm_pools), name) ? { adaptive_warm_pool = var.adaptive_warm_pools[name] } : {}, contains(keys(var.fleet_budgets), name) ? { budget = var.fleet_budgets[name] } : {})
   ]
 
   controller_generation = sha256(jsonencode(merge({
@@ -744,7 +773,7 @@ locals {
     GONDOLA_FLEETS_JSON               = jsonencode(local.fleet_runtime_configuration)
     GONDOLA_METRICS_ENABLED           = tostring(var.metrics_enabled)
     GONDOLA_METRICS_NAMESPACE         = var.metrics_namespace
-  }, var.bootstrap_diagnostics_enabled ? { GONDOLA_BOOTSTRAP_DIAGNOSTICS_ENABLED = "true" } : {})
+  }, var.bootstrap_diagnostics_enabled ? { GONDOLA_BOOTSTRAP_DIAGNOSTICS_ENABLED = "true" } : {}, length(var.fleet_budgets) > 0 ? { GONDOLA_BUDGET_TABLE = aws_dynamodb_table.budgets[0].name } : {})
 
   secrets = merge(var.secrets, local.github_secrets, local.entitlement_secrets)
 }
@@ -819,6 +848,18 @@ resource "aws_ecs_task_definition" "this" {
   }
 
   lifecycle {
+    precondition {
+      condition = alltrue([
+        for name, policy in var.adaptive_warm_pools : contains(keys(local.fleets), name) && try(policy.max_runners <= local.fleets[name].max_runners, false)
+      ])
+      error_message = "Every adaptive_warm_pools key must identify a configured fleet and its adaptive maximum must not exceed that fleet's max_runners."
+    }
+
+    precondition {
+      condition     = alltrue([for name in keys(var.fleet_budgets) : contains(keys(local.fleets), name)])
+      error_message = "Every fleet_budgets key must identify a configured fleet."
+    }
+
     precondition {
       condition = alltrue([
         for name, windows in var.warm_windows : contains(keys(local.fleets), name) && alltrue([
