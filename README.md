@@ -29,7 +29,7 @@ least two Availability Zones.
 ```hcl
 module "gondola" {
   source  = "gondola-build/gondola/aws"
-  version = "0.7.0"
+  version = "0.8.0"
 
   name            = "gondola-production"
   vpc_id          = var.vpc_id
@@ -200,7 +200,7 @@ release availability or live AWS acceptance.
 
 ## Approved capacity and UTC minimum windows
 
-The upcoming module 0.7.0 adds optional instance-type alternatives and weekly
+Module 0.7.0 introduced optional instance-type alternatives and weekly
 minimum/replenishment windows. Empty defaults retain existing behavior. Use
 these settings only with the matching released controller/module pair from the
 verified release manifest; this draft does not establish release availability
@@ -247,10 +247,10 @@ metrics, and the remaining published-image acceptance steps.
 
 ## Optional adaptive capacity and daily allowances
 
-The upcoming module 0.8.0 and its matching signed controller add
+Module 0.8.0 pairs with signed Gondola controller v0.8.1 and adds
 `adaptive_warm_pools` and `fleet_budgets`. Module/controller 0.7.0 does not
-support these settings. Enable them only after the matching 0.8.0 releases are
-published, using the verified release manifest.
+support these settings. Use the verified v0.8.1 release manifest to select
+the controller digest and module version before enabling either policy.
 
 Add these inputs to the module configuration for the existing `linux_x64`
 fleet. The hourly rate is illustrative, not an AWS price quote:
