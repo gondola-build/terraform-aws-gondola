@@ -29,7 +29,7 @@ least two Availability Zones.
 ```hcl
 module "gondola" {
   source  = "gondola-build/gondola/aws"
-  version = "0.8.0"
+  version = "0.8.1"
 
   name            = "gondola-production"
   vpc_id          = var.vpc_id
@@ -247,9 +247,9 @@ metrics, and the remaining published-image acceptance steps.
 
 ## Optional adaptive capacity and daily allowances
 
-Module 0.8.0 pairs with signed Gondola controller v0.8.1 and adds
+Module 0.8.1 pairs with Gondola controller v0.8.2 and includes
 `adaptive_warm_pools` and `fleet_budgets`. Module/controller 0.7.0 does not
-support these settings. Use the verified v0.8.1 release manifest to select
+support these settings. Use the verified v0.8.2 release manifest to select
 the controller digest and module version before enabling either policy.
 
 Add these inputs to the module configuration for the existing `linux_x64`
